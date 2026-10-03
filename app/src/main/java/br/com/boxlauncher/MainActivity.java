@@ -133,6 +133,28 @@ public class MainActivity extends Activity {
                 } catch (Exception e) { notice("Falha ao validar a senha."); }
             }).show();
     }
+    private void chooseApp(String key) {
+        if (prefs.getBoolean("managed", false) || prefs.getBoolean("blocked", false)) {
+            notice("Desative as restrições e libere a assinatura antes de trocar os aplicativos."); return;
+        }
+        java.util.List<android.content.pm.ApplicationInfo> apps = getPackageManager().getInstalledApplications(0);
+        java.util.List<String> packages = new java.util.ArrayList<>();
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        apps.sort((a,b) -> getPackageManager().getApplicationLabel(a).toString().compareToIgnoreCase(getPackageManager().getApplicationLabel(b).toString()));
+        for (android.content.pm.ApplicationInfo app : apps) {
+            if (app.packageName.equals(getPackageName())) continue;
+            if (getPackageManager().getLeanbackLaunchIntentForPackage(app.packageName) == null && getPackageManager().getLaunchIntentForPackage(app.packageName) == null) continue;
+            packages.add(app.packageName); labels.add(getPackageManager().getApplicationLabel(app) + " (" + app.packageName + ")");
+        }
+        new AlertDialog.Builder(this).setTitle("Escolha o aplicativo instalado")
+            .setItems(labels.toArray(new String[0]), (d,index) -> {
+                String chosen = packages.get(index);
+                if (chosen.equals(get(key.equals("tv") ? "youtube" : "tv", key.equals("tv") ? YOUTUBE : ""))) {
+                    notice("TV e YouTube devem ser aplicativos diferentes."); return;
+                }
+                prefs.edit().putString(key, chosen).apply(); drawAdmin();
+            }).setNegativeButton("Cancelar", null).show();
+    }
     private EditText field(String title, String key, String fallback) {
         page.addView(text(title, 16)); EditText input = new EditText(this);
         input.setText(get(key, fallback)); input.setSingleLine(true); input.setTextColor(Color.WHITE); page.addView(input); return input;
@@ -140,12 +162,19 @@ public class MainActivity extends Activity {
     private void drawAdmin() {
         beginPage("Administração • UniãoTV");
         EditText tv = field("Identificador do aplicativo de TV", "tv", "");
+        button("Escolher aplicativo de TV instalado", () -> chooseApp("tv"));
         EditText youtube = field("Identificador do YouTube", "youtube", YOUTUBE);
+        button("Escolher YouTube instalado", () -> chooseApp("youtube"));
         EditText support = field("Telefone de suporte", "support", "");
         EditText banner = field("Texto da propaganda", "banner", "Bem-vindo à UniãoTV");
         EditText payment = field("Pix copia e cola completo OU link HTTPS de pagamento", "payment", "");
         button("Salvar configurações", () -> {
-            if (prefs.getBoolean("managed", false)) { notice("Desative as restrições antes de alterar os aplicativos."); return; }
+            if (prefs.getBoolean("managed", false) || prefs.getBoolean("blocked", false)) { notice("Desative as restrições e libere a assinatura antes de alterar as configurações."); return; }
+            String tvPackage = tv.getText().toString().trim();
+            String youtubePackage = youtube.getText().toString().trim();
+            if (youtubePackage.isEmpty() || youtubePackage.equals(getPackageName()) || tvPackage.equals(getPackageName()) || tvPackage.equals(youtubePackage)) {
+                notice("Escolha aplicativos de TV e YouTube diferentes do launcher."); return;
+            }
             prefs.edit().putString("tv", tv.getText().toString().trim()).putString("youtube", youtube.getText().toString().trim())
                 .putString("support", support.getText().toString().trim()).putString("banner", banner.getText().toString())
                 .putString("payment", payment.getText().toString().trim()).apply(); drawHome();
@@ -164,6 +193,11 @@ public class MainActivity extends Activity {
             if (!policy.isDeviceOwnerApp(getPackageName())) { notice("É necessário provisionar esta box como Device Owner. Consulte o guia."); return; }
             if (get("tv", "").isEmpty() || get("tv", "").equals(get("youtube", YOUTUBE)) || get("tv", "").equals(getPackageName())) {
                 notice("Configure um aplicativo de TV válido e diferente do YouTube e do launcher."); return;
+            }
+            for (String pkg : new String[]{get("tv", ""), get("youtube", YOUTUBE)}) {
+                if (getPackageManager().getLeanbackLaunchIntentForPackage(pkg) == null && getPackageManager().getLaunchIntentForPackage(pkg) == null) {
+                    notice("Instale e teste os dois aplicativos antes de ativar as restrições."); return;
+                }
             }
             new AlertDialog.Builder(this).setTitle("Ativar modo controlado?").setMessage("Somente TV, YouTube e este launcher estarão disponíveis. Instalações e redefinição pelo menu serão restringidas. A senha administrativa permite desativar as restrições.")
                 .setNegativeButton("Cancelar", null).setPositiveButton("Ativar", (d,w) -> {
