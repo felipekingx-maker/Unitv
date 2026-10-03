@@ -58,4 +58,3 @@ Para manutenção: Administração > Desativar restrições para manutenção. A
 - Testar sem internet: as configurações locais continuam disponíveis.
 
 Não usar este protótipo como garantia de bloqueio até completar esses testes no firmware escolhido.
-
