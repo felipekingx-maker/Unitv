@@ -49,7 +49,16 @@ public class MainActivity extends Activity {
             try { applyPolicies(); startLockTask(); } catch (RuntimeException e) { notice("Gerenciamento: " + e.getMessage()); }
         }
     }
-    @Override public void onBackPressed() { /* Home remains available through the remote. */ }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        drawHome();
+    }
+    @Override protected void onPause() {
+        super.onPause();
+        if (prefs != null) drawHome();
+    }
+    @Override public void onBackPressed() { drawHome(); }
     private String get(String key, String fallback) { return prefs.getString(key, fallback); }
     private int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density); }
     private TextView text(String value, int size) {
